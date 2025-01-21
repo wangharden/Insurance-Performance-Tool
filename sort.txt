@@ -1,0 +1,98 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <sstream>
+
+// 定义组数据结构
+struct Group {
+    std::vector<std::string> rows;  // 存储每组的行
+    double key;                     // 用来排序的关键值（百分数作为浮点数）
+};
+
+// 解析第一行内容并提取出第二个数值（百分数），转换为浮点数
+double extractSecondValue(const std::string& line) {
+    std::istringstream iss(line);
+    std::string firstValue, secondValue;
+
+    // 读取前两个值（第一个是忽略的，第二个是百分数）
+    iss >> firstValue >> secondValue;
+
+    // 去掉百分号，并将字符串转换为浮点数
+    secondValue.pop_back();  // 去掉最后的'%'
+    return std::stod(secondValue);
+}
+
+// Bubble Sort 用于从大到小排序
+void bubbleSort(std::vector<Group>& groups) {
+    for (size_t i = 0; i < groups.size() - 1; ++i) {
+        for (size_t j = i + 1; j < groups.size(); ++j) {
+            if (groups[i].key < groups[j].key) {  // 从大到小排序
+                std::swap(groups[i], groups[j]);
+            }
+        }
+    }
+}
+
+int main(int argc, char** argv) {
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
+        return -1;
+    }
+
+    std::ifstream fin1(argv[1]);
+    if (!fin1) {
+        std::cerr << "Error: Could not open file " << argv[1] << std::endl;
+        return -1;
+    }
+
+    std::vector<std::string> fvec1;
+    std::string tmp;
+    while (std::getline(fin1, tmp)) {
+        fvec1.push_back(tmp);
+    }
+
+    fin1.close();  // 读取完成后关闭文件
+
+    // 组数据存储和排序处理
+    std::vector<Group> groups;
+    int groupSize = 4;  // 每组行数
+
+    Group currentGroup;
+    int lineCount = 0;
+
+    for (const auto& line : fvec1) {
+        currentGroup.rows.push_back(line);
+        lineCount++;
+
+        if (lineCount == groupSize) {
+            // 使用第一行并提取第二个数值（百分数）作为排序的关键值
+            currentGroup.key = extractSecondValue(currentGroup.rows[0]);  // 第一行的第二个数值
+            groups.push_back(currentGroup);
+            currentGroup.rows.clear();
+            lineCount = 0;
+        }
+    }
+
+    // 排序
+    bubbleSort(groups);
+
+    // 将排序后的结果输出到文件
+    std::ofstream outfile("sorted_data.txt");
+    if (!outfile) {
+        std::cerr << "Error: Could not open output file sorted_data.txt" << std::endl;
+        return -1;
+    }
+
+    for (const auto& group : groups) {
+        for (const auto& row : group.rows) {
+            outfile << row << std::endl;
+        }
+    }
+
+    outfile.close();
+    std::cout << "Sorting completed and output to sorted_data.txt!" << std::endl;
+
+    return 0;
+}
