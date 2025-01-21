@@ -1,0 +1,55 @@
+import pandas as pd
+
+def calculate_insurance_salary(input_path, output_path):
+    """
+    保险薪酬计算与CPR分析脚本
+    功能：
+    1. 计算个人累计工资
+    2. 按机构和渠道计算CPR（工资/保费）
+    """
+    # ==================== 数据读取 ====================
+    # 读取各月薪酬表（假设包含全年各月数据）
+    salary_df = pd.read_excel(input_path, sheet_name='个月薪酬')
+    
+    # 读取社保公积金表
+    social_df = pd.read_ex_excel(input_path, sheet_name='社保公积金', usecols=['工号', '社保公积金'])
+    
+    # 读取实收保费表（包含机构和渠道信息）
+    premium_df = pd.read_ex_excel(input_path, sheet_name='实收保费', usecols=['机构', '渠道', '保费'])
+
+    # ==================== 数据处理 ====================
+    # 合并工资与社保数据
+    merged_salary = pd.merge(
+        salary_df.groupby('工号').sum().reset_index(),  # 按工号汇总各月工资
+        social_df,
+        on='工号',
+        how='left'
+    )
+    
+    # 计算总工资（工资+社保公积金）
+    merged_salary['总工资'] = merged_salary.iloc[:, 1:-1].sum(axis=1) + merged_salary['社保公积金']
+
+    # ==================== CPR计算 ====================
+    # 按机构分类计算
+    org_cpr = (
+        merged_salary.groupby('机构')['总工资'].sum() 
+        / premium_df.groupby('机构')['保费'].sum()
+    ).reset_index(name='CPR')
+
+    # 按渠道分类计算
+    channel_cpr = (
+        merged_salary.groupby('渠道')['总工资'].sum() 
+        / premium_df.groupby('渠道')['保费'].sum()
+    ).reset_index(name='CPR')
+
+    # ==================== 结果输出 ====================
+    with pd.ExcelWriter(output_path) as writer:
+        merged_salary.to_excel(writer, sheet_name='个人工资明细', index=False)
+        org_cpr.to_excel(writer, sheet_name='机构CPR', index=False)
+        channel_cpr.to_excel(writer, sheet_name='渠道CPR', index=False)
+
+if __name__ == "__main__":
+    calculate_insurance_salary(
+        input_path="保险薪酬数据.xlsx",
+        output_path="薪酬分析报告.xlsx"
+    )
